@@ -34,6 +34,20 @@ selected_tower_slot = None
 # Slot-Kästchen unten zentriert
 slot_rects = [pygame.Rect(WIDTH // 2 - 30, HEIGHT - 70, 60, 60)]
 
+# Lebenspunkte
+player_lives = 10
+
+# Wave-Variablen
+wave = 1
+total_waves = 10
+enemies_per_wave = 5
+spawned = 0
+spawn_timer = 0
+
+# Fonts
+font_big = pygame.font.SysFont("arial", 60)
+font_small = pygame.font.SysFont("arial", 30)
+
 
 def update_projectiles():
     for p in projectiles[:]:
@@ -59,29 +73,43 @@ def update_projectiles():
         pygame.draw.circle(SCREEN, RED, (int(p['x']), int(p['y'])), 5)
 
 
-wave = 1
-total_waves = 10
-enemies_per_wave = 5
-spawned = 0
-spawn_timer = 0
-
-font_big = pygame.font.SysFont("arial", 60)
-font_small = pygame.font.SysFont("arial", 30)
-
 while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if game_state == "menu":
+    if game_state == "menu":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
+                    # Reset für neues Spiel
+                    player_lives = 10
+                    wave = 1
+                    enemies_per_wave = 5
+                    spawned = 0
+                    enemies.clear()
+                    towers.clear()
+                    projectiles.clear()
+                    selected_tower_slot = None
                     game_state = "game"
 
-            elif game_state == "game":
+        SCREEN.fill(MENU_BG)
+        title = font_big.render("TOWER DEFENSE", True, WHITE)
+        SCREEN.blit(title, (WIDTH // 2 - title.get_width() // 2, 180))
+
+        pygame.draw.rect(SCREEN, GREEN, start_button, border_radius=15)
+        text = font_small.render("START", True, WHITE)
+        SCREEN.blit(text, (start_button.centerx - text.get_width() // 2,
+                           start_button.centery - text.get_height() // 2))
+
+    elif game_state == "game":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 click_pos = event.pos
 
+                # Prüfen ob Slot angeklickt
                 slot_clicked = False
                 for idx, rect in enumerate(slot_rects):
                     if rect.collidepoint(click_pos):
@@ -89,6 +117,7 @@ while True:
                         slot_clicked = True
                         break
 
+                # Turm platzieren
                 if selected_tower_slot is not None and not slot_clicked:
                     can_place = True
                     for i in range(len(path) - 1):
@@ -118,32 +147,21 @@ while True:
                         towers.append(Tower(*click_pos))
                         selected_tower_slot = None
 
-    # MENU
-    if game_state == "menu":
-        SCREEN.fill(MENU_BG)
-        title = font_big.render("TOWER DEFENSE", True, WHITE)
-        SCREEN.blit(title, (WIDTH // 2 - title.get_width() // 2, 180))
-
-        pygame.draw.rect(SCREEN, GREEN, start_button, border_radius=15)
-        text = font_small.render("START", True, WHITE)
-        SCREEN.blit(text, (start_button.centerx - text.get_width() // 2,
-                           start_button.centery - text.get_height() // 2))
-
-    # GAME
-    if game_state == "game":
+        # Hintergrund
         SCREEN.fill(GRASS)
 
+        # Pfad
         pygame.draw.lines(SCREEN, PATH_OUTER, False, path, 50)
         pygame.draw.lines(SCREEN, PATH_INNER, False, path, 30)
 
         pygame.draw.circle(SCREEN, (40, 40, 40), path[0], 40)
         pygame.draw.circle(SCREEN, RED, path[0], 30)
         pygame.draw.circle(SCREEN, WHITE, path[0], 15)
-
         pygame.draw.circle(SCREEN, (40, 40, 40), path[-1], 40)
         pygame.draw.circle(SCREEN, BLUE, path[-1], 30)
         pygame.draw.circle(SCREEN, WHITE, path[-1], 15)
 
+        # Gegner spawnen
         if spawned < enemies_per_wave:
             spawn_timer += 1
             if spawn_timer > 60:
@@ -151,19 +169,27 @@ while True:
                 spawned += 1
                 spawn_timer = 0
 
+        # Gegner bewegen und prüfen
         for enemy in enemies[:]:
             enemy.move()
             enemy.draw(SCREEN)
-            if enemy.path_index >= len(path) - 1 or enemy.hp <= 0:
+            if enemy.path_index >= len(path) - 1:
+                player_lives -= 1
+                enemy.alive = False
+                enemies.remove(enemy)
+            elif enemy.hp <= 0:
                 enemy.alive = False
                 enemies.remove(enemy)
 
+        # Türme zeichnen und angreifen
         for tower in towers:
             tower.draw(SCREEN)
             tower.attack(enemies, projectiles)
 
+        # Projektil-Update
         update_projectiles()
 
+        # Slot-Kästchen
         for idx, rect in enumerate(slot_rects):
             color = SLOT_ACTIVE if selected_tower_slot == idx else SLOT_BG
             pygame.draw.rect(SCREEN, color, rect)
@@ -171,14 +197,44 @@ while True:
             pygame.draw.circle(SCREEN, RED, rect.center, 10)
             pygame.draw.circle(SCREEN, WHITE, rect.center, 5)
 
-        if spawned == enemies_per_wave and len(enemies) == 0:
-            if wave < total_waves:
-                wave += 1
-                enemies_per_wave += 2
-                spawned = 0
+        # UI: Wave + Leben
+        wave_text = font_small.render(f"Welle {wave}/{total_waves}", True, WHITE)
+        SCREEN.blit(wave_text, (20, 20))
+        lives_text = font_small.render(f"Leben: {player_lives}", True, WHITE)
+        SCREEN.blit(lives_text, (20, 50))
 
-        text = font_small.render(f"Welle {wave}/{total_waves}", True, WHITE)
-        SCREEN.blit(text, (20, 20))
+        # Nächste Welle
+        if spawned == enemies_per_wave and len(enemies) == 0 and wave < total_waves:
+            wave += 1
+            enemies_per_wave += 2
+            spawned = 0
+
+        # Game Over
+        if player_lives <= 0:
+            game_state = "game_over"
+
+    elif game_state == "game_over":
+        SCREEN.fill((80, 0, 0))
+        game_over_text = font_big.render("GAME OVER", True, WHITE)
+        SCREEN.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 50))
+        retry_text = font_small.render("Klick um neu zu starten", True, WHITE)
+        SCREEN.blit(retry_text, (WIDTH // 2 - retry_text.get_width() // 2, HEIGHT // 2 + 30))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # Reset für neues Spiel
+                player_lives = 10
+                wave = 1
+                enemies_per_wave = 5
+                spawned = 0
+                enemies.clear()
+                towers.clear()
+                projectiles.clear()
+                selected_tower_slot = None
+                game_state = "menu"
 
     pygame.display.update()
     clock.tick(60)

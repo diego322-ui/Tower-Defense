@@ -9,6 +9,7 @@
     Nach jedem Angriff hat der Turm eine Abklingzeit (cooldown), bevor er
     erneut schießen kann. Zusätzlich wird beim Angriff ein Projektil erzeugt
     und der Turm dreht sich visuell in Richtung seines Ziels."""
+
 import pygame
 import colors
 import math
