@@ -2,6 +2,9 @@ import pygame
 import sys
 from pygame.locals import QUIT
 import math
+import colors
+import enemy
+import tower
 
 pygame.init()
 
@@ -11,18 +14,6 @@ pygame.display.set_caption("Tower Defense")
 
 clock = pygame.time.Clock()
 
-# Farben
-GRASS = (90, 200, 90)
-PATH_OUTER = (170, 120, 70)
-PATH_INNER = (130, 90, 50)
-WHITE = (255, 255, 255)
-BLACK = (30, 30, 30)
-GREEN = (50, 220, 90)
-RED = (200, 60, 60)
-BLUE = (60, 60, 200)
-MENU_BG = (40, 40, 80)
-SLOT_BG = (60, 60, 60)
-SLOT_ACTIVE = (100, 100, 255)
 
 game_state = "menu"
 
@@ -47,34 +38,6 @@ selected_tower_slot = None
 # Slot-Kästchen unten zentriert
 slot_rects = [pygame.Rect(WIDTH // 2 - 30, HEIGHT - 70, 60, 60)]  # 60x60 Kästchen
 
-# Gegner Klasse
-class Enemy:
-    def __init__(self):
-        self.x, self.y = path[0]
-        self.speed = 2
-        self.path_index = 0
-        self.hp = 3
-
-    def move(self):
-        if self.path_index < len(path) - 1:
-            tx, ty = path[self.path_index + 1]
-            if self.x < tx:
-                self.x += self.speed
-            if self.x > tx:
-                self.x -= self.speed
-            if self.y < ty:
-                self.y += self.speed
-            if self.y > ty:
-                self.y -= self.speed
-            if abs(self.x - tx) < 5 and abs(self.y - ty) < 5:
-                self.path_index += 1
-
-    def draw(self):
-        pygame.draw.circle(SCREEN, BLACK, (int(self.x), int(self.y)), 14)
-        pygame.draw.circle(SCREEN, RED, (int(self.x), int(self.y)), 10)
-        # Lebensbalken
-        pygame.draw.rect(SCREEN, RED, (self.x - 10, self.y - 20, 20, 4))
-        pygame.draw.rect(SCREEN, GREEN, (self.x - 10, self.y - 20, 20 * (self.hp / 3), 4))
 
 
 # Turm Klasse
