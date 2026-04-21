@@ -140,7 +140,7 @@ while True:
                             money -= tower_cost
                             selected_tower_slot = None
                     else:
-                        error_timer = 60  # nur beim Kaufversuch
+                        error_timer = 60
 
         SCREEN.fill(GRASS)
 
@@ -154,10 +154,21 @@ while True:
         pygame.draw.circle(SCREEN, BLUE, path[-1], 30)
         pygame.draw.circle(SCREEN, WHITE, path[-1], 15)
 
+        # SPAWN-LOGIK MIT VERSCHIEDENEN GEGNERN
         if spawned < enemies_per_wave:
             spawn_timer += 1
             if spawn_timer > 60:
-                enemies.append(Enemy())
+                enemy_type = "normal"
+
+                # schneller Gegner ab Welle 3
+                if wave >= 3 and spawned % 3 == 0:
+                    enemy_type = "fast"
+
+                # Boss am Ende
+                if wave >= 5 and spawned == enemies_per_wave - 1:
+                    enemy_type = "boss"
+
+                enemies.append(Enemy(wave, enemy_type))
                 spawned += 1
                 spawn_timer = 0
 
@@ -209,7 +220,14 @@ while True:
             wave += 1
             enemies_per_wave += 2
             spawned = 0
-
+            # Wellenbonus
+            if wave <= 3:
+                money += 10
+            elif wave <= 6:
+                money += 15
+            else:
+                money += 20
+        
         if player_lives <= 0:
             game_state = "game_over"
 

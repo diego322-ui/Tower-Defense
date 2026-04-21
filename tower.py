@@ -18,7 +18,7 @@ class Tower:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.range = 120
+        self.range = 200
         self.color = (80, 80, 80)
         self.cooldown = 0
         self.target_angle = 0
