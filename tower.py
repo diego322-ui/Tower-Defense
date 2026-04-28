@@ -10,10 +10,10 @@ class Tower:
         self.cooldown = 0
         self.farm_timer = 0
 
-        # BASIC
+        # BASIC 
         if tower_type == "basic":
             self.range = 150
-            self.damage = 1
+            self.damage = 1          
             self.cooldown_max = 60
             self.color = (80, 80, 80)
 
@@ -39,12 +39,10 @@ class Tower:
 
         pygame.draw.circle(screen, (0, 0, 0), (x, y), 24)
         pygame.draw.circle(screen, self.color, (x, y), 20)
-
         pygame.draw.circle(screen, (255, 255, 255), (x, y), 6)
 
     def attack(self, enemies, projectiles):
 
-        # FARM
         if self.tower_type == "farm":
             self.farm_timer += 1
             if self.farm_timer >= self.farm_interval:
@@ -52,12 +50,10 @@ class Tower:
                 return self.farm_income
             return 0
 
-        # COOLDOWN
         if self.cooldown > 0:
             self.cooldown -= 1
             return 0
 
-        # TARGET FINDING
         target = None
         lowest = float("inf")
 
@@ -67,7 +63,6 @@ class Tower:
                 lowest = e.hp
                 target = e
 
-        # ATTACK
         if target:
             target.hp -= self.damage
 

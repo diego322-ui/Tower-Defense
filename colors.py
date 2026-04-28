@@ -1,4 +1,3 @@
-# Farben
 GRASS = (90, 200, 90)
 PATH_OUTER = (170, 120, 70)
 PATH_INNER = (130, 90, 50)

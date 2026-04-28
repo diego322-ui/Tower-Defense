@@ -43,7 +43,7 @@ error_timer = 0
 
 wave = 1
 total_waves = 10
-enemies_per_wave = 5
+enemies_per_wave = 5   
 spawned = 0
 spawn_timer = 0
 
@@ -197,16 +197,16 @@ while True:
         pygame.draw.circle(SCREEN, BLUE, path[-1], 30)
         pygame.draw.circle(SCREEN, WHITE, path[-1], 15)
 
-        # SPAWN
+        # SPAWN 
         if spawned < enemies_per_wave:
             spawn_timer += 1
-            if spawn_timer > 60:
+            if spawn_timer > 50:
                 enemy_type = "normal"
 
                 if wave >= 3 and spawned % 3 == 0:
                     enemy_type = "fast"
 
-                if wave >= 5 and spawned == enemies_per_wave - 1:
+                if wave >= 6 and spawned == enemies_per_wave - 1:
                     enemy_type = "boss"
 
                 enemies.append(Enemy(wave, enemy_type))
@@ -235,7 +235,6 @@ while True:
 
         update_projectiles()
 
-        # INFO BUTTON
         pygame.draw.circle(SCREEN, (200, 200, 200), info_button.center, 15)
         text = font_small.render("i", True, BLACK)
         SCREEN.blit(text, (
@@ -243,11 +242,9 @@ while True:
             info_button.centery - text.get_height() // 2
         ))
 
-        # INFO BOX
         if info_open and selected_tower_slot is not None:
             draw_info_box(SCREEN, tower_types[selected_tower_slot])
 
-        # SLOT UI
         for idx, rect in enumerate(slot_rects):
             t = tower_types[idx]
             color = SLOT_ACTIVE if selected_tower_slot == idx else SLOT_BG
@@ -272,32 +269,20 @@ while True:
                 rect.centery - text.get_height() // 2
             ))
 
-        # HUD
-        SCREEN.blit(font_small.render(f"Geld: {money}", True, WHITE),
-                    (WIDTH - 180, 20))
-
-        wave_text = font_small.render(f"Welle {wave}/{total_waves}", True, WHITE)
-        SCREEN.blit(wave_text, (20, 20))
-
-        lives_text = font_small.render(f"Leben: {player_lives}", True, WHITE)
-        SCREEN.blit(lives_text, (20, 50))
+        SCREEN.blit(font_small.render(f"Geld: {money}", True, WHITE), (WIDTH - 180, 20))
+        SCREEN.blit(font_small.render(f"Welle {wave}/{total_waves}", True, WHITE), (20, 20))
+        SCREEN.blit(font_small.render(f"Leben: {player_lives}", True, WHITE), (20, 50))
 
         if error_timer > 0:
             err = font_small.render("Nicht genug Geld!", True, RED)
             SCREEN.blit(err, (WIDTH // 2 - 100, HEIGHT - 120))
             error_timer -= 1
 
-        if spawned == enemies_per_wave and len(enemies) == 0 and wave < total_waves:
+        if spawned == enemies_per_wave and len(enemies) == 0:
             wave += 1
             enemies_per_wave += 2
             spawned = 0
-
-            if wave <= 3:
-                money += 10
-            elif wave <= 6:
-                money += 15
-            else:
-                money += 20
+            money += 10 + wave * 2
 
         if player_lives <= 0:
             game_state = "game_over"
