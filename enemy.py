@@ -16,27 +16,24 @@ import colors
 
 path = [(50, 550), (200, 550), (200, 400), (500, 400), (500, 200), (850, 200)]
 
+
 class Enemy:
     def __init__(self, wave, enemy_type="normal"):
         self.x, self.y = path[0]
         self.path_index = 0
-
         self.enemy_type = enemy_type
 
-        # Standardwerte
         self.speed = 2
         self.max_hp = 3 + wave
-        self.hp = self.max_hp
+        self.hp = float(self.max_hp)
         self.size = 10
 
-        # Schneller Gegner
         if self.enemy_type == "fast":
             self.speed = 4
             self.max_hp = 2 + wave // 2
             self.hp = self.max_hp
             self.size = 8
 
-        # Boss Gegner
         elif self.enemy_type == "boss":
             self.speed = 1
             self.max_hp = (3 + wave) * 3
@@ -67,7 +64,6 @@ class Enemy:
         x = int(self.x)
         y = int(self.y)
 
-        # Visueller Unterschied
         if self.enemy_type == "fast":
             color = colors.BLUE
         elif self.enemy_type == "boss":

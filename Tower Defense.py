@@ -1,6 +1,5 @@
 import pygame
 import sys
-from pygame.locals import QUIT
 import math
 
 from colors import *
@@ -22,14 +21,24 @@ enemies = []
 towers = []
 projectiles = []
 
+tower_types = ["basic", "sniper", "farm"]
+
+tower_costs = {
+    "basic": 50,
+    "sniper": 80,
+    "farm": 60
+}
+
 selected_tower_slot = None
-slot_rects = [pygame.Rect(WIDTH // 2 - 30, HEIGHT - 70, 60, 60)]
+
+slot_rects = [
+    pygame.Rect(WIDTH // 2 - 110, HEIGHT - 70, 60, 60),
+    pygame.Rect(WIDTH // 2 - 20, HEIGHT - 70, 60, 60),
+    pygame.Rect(WIDTH // 2 + 70, HEIGHT - 70, 60, 60)
+]
 
 player_lives = 10
-
-# GELDSYSTEM
 money = 100
-tower_cost = 50
 error_timer = 0
 
 wave = 1
@@ -38,39 +47,86 @@ enemies_per_wave = 5
 spawned = 0
 spawn_timer = 0
 
+info_open = False
+info_button = pygame.Rect(WIDTH // 2 + 120, 10, 30, 30)
+
 font_big = pygame.font.SysFont("arial", 60)
 font_small = pygame.font.SysFont("arial", 30)
+font_tiny = pygame.font.SysFont("arial", 18)
+
+
+def draw_info_box(screen, tower_type):
+    box = pygame.Rect(WIDTH // 2 - 110, 50, 220, 160)
+    pygame.draw.rect(screen, (30, 30, 30), box, border_radius=10)
+    pygame.draw.rect(screen, WHITE, box, 2, border_radius=10)
+
+    if tower_type == "basic":
+        name = "Basic Tower"
+        dmg = "Damage: 1"
+        rng = "Range: 150"
+        desc = "Balanced all-round tower"
+        cost = "Cost: 50"
+
+    elif tower_type == "sniper":
+        name = "Sniper Tower"
+        dmg = "Damage: 3"
+        rng = "Range: 300"
+        desc = "High damage, slow attack"
+        cost = "Cost: 80"
+
+    else:
+        name = "Farm Tower"
+        dmg = "No attack"
+        rng = "No range"
+        desc = "Generates money over time"
+        cost = "Cost: 60"
+
+    lines = [name, dmg, rng, desc, cost]
+
+    y = box.y + 10
+    for line in lines:
+        text = font_tiny.render(line, True, WHITE)
+        screen.blit(text, (box.x + 10, y))
+        y += 28
 
 
 def update_projectiles():
     for p in projectiles[:]:
-        target = p['target']
+        target = p.get("target")
 
-        if not target.alive:
+        if not target or not target.alive:
             projectiles.remove(p)
             continue
 
-        tx, ty = target.x, target.y
-        dx, dy = tx - p['x'], ty - p['y']
-        distance = math.hypot(dx, dy)
+        dx = target.x - p["x"]
+        dy = target.y - p["y"]
+        dist = math.hypot(dx, dy)
 
-        if distance < 5:
+        if dist < 5:
             projectiles.remove(p)
             continue
 
-        dx, dy = dx / distance, dy / distance
-        p['x'] += dx * p['speed']
-        p['y'] += dy * p['speed']
+        dx, dy = dx / dist, dy / dist
+        p["x"] += dx * p["speed"]
+        p["y"] += dy * p["speed"]
 
-        pygame.draw.circle(SCREEN, RED, (int(p['x']), int(p['y'])), 5)
+        pygame.draw.circle(
+            SCREEN,
+            p.get("color", RED),
+            (int(p["x"]), int(p["y"])),
+            5
+        )
 
 
 while True:
+
+    # MENU
     if game_state == "menu":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
                     player_lives = 10
@@ -81,28 +137,34 @@ while True:
                     towers.clear()
                     projectiles.clear()
                     selected_tower_slot = None
-
-                    # Reset Geld
                     money = 100
-
                     game_state = "game"
 
         SCREEN.fill(MENU_BG)
+
         title = font_big.render("TOWER DEFENSE", True, WHITE)
         SCREEN.blit(title, (WIDTH // 2 - title.get_width() // 2, 180))
 
         pygame.draw.rect(SCREEN, GREEN, start_button, border_radius=15)
         text = font_small.render("START", True, WHITE)
-        SCREEN.blit(text, (start_button.centerx - text.get_width() // 2,
-                           start_button.centery - text.get_height() // 2))
+        SCREEN.blit(text, (
+            start_button.centerx - text.get_width() // 2,
+            start_button.centery - text.get_height() // 2
+        ))
 
+    # GAME
     elif game_state == "game":
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 click_pos = event.pos
+
+                if info_button.collidepoint(click_pos):
+                    info_open = not info_open
 
                 slot_clicked = False
                 for idx, rect in enumerate(slot_rects):
@@ -111,34 +173,14 @@ while True:
                         slot_clicked = True
                         break
 
-                # KAUF-LOGIK
                 if selected_tower_slot is not None and not slot_clicked:
-                    if money >= tower_cost:
-                        can_place = True
-                        for i in range(len(path) - 1):
-                            px, py = path[i]
-                            nx, ny = path[i + 1]
-                            dx = nx - px
-                            dy = ny - py
+                    tower_type = tower_types[selected_tower_slot]
+                    cost = tower_costs[tower_type]
 
-                            denominator = dx * dx + dy * dy
-                            if denominator == 0:
-                                t = 0
-                            else:
-                                t = max(0, min(1, ((click_pos[0] - px) * dx + (click_pos[1] - py) * dy) / denominator))
-
-                            closest_x = px + t * dx
-                            closest_y = py + t * dy
-                            distance = math.hypot(click_pos[0] - closest_x, click_pos[1] - closest_y)
-
-                            if distance < 50:
-                                can_place = False
-                                break
-
-                        if can_place:
-                            towers.append(Tower(*click_pos))
-                            money -= tower_cost
-                            selected_tower_slot = None
+                    if money >= cost:
+                        towers.append(Tower(click_pos[0], click_pos[1], tower_type))
+                        money -= cost
+                        selected_tower_slot = None
                     else:
                         error_timer = 60
 
@@ -150,21 +192,20 @@ while True:
         pygame.draw.circle(SCREEN, (40, 40, 40), path[0], 40)
         pygame.draw.circle(SCREEN, RED, path[0], 30)
         pygame.draw.circle(SCREEN, WHITE, path[0], 15)
+
         pygame.draw.circle(SCREEN, (40, 40, 40), path[-1], 40)
         pygame.draw.circle(SCREEN, BLUE, path[-1], 30)
         pygame.draw.circle(SCREEN, WHITE, path[-1], 15)
 
-        # SPAWN-LOGIK MIT VERSCHIEDENEN GEGNERN
+        # SPAWN
         if spawned < enemies_per_wave:
             spawn_timer += 1
             if spawn_timer > 60:
                 enemy_type = "normal"
 
-                # schneller Gegner ab Welle 3
                 if wave >= 3 and spawned % 3 == 0:
                     enemy_type = "fast"
 
-                # Boss am Ende
                 if wave >= 5 and spawned == enemies_per_wave - 1:
                     enemy_type = "boss"
 
@@ -172,85 +213,111 @@ while True:
                 spawned += 1
                 spawn_timer = 0
 
+        # ENEMIES
         for enemy in enemies[:]:
             enemy.move()
             enemy.draw(SCREEN)
 
             if enemy.path_index >= len(path) - 1:
                 player_lives -= 1
-                enemy.alive = False
                 enemies.remove(enemy)
 
             elif enemy.hp <= 0:
-                enemy.alive = False
                 enemies.remove(enemy)
-
-                # Belohnung
                 money += 10
 
+        # TOWERS
         for tower in towers:
             tower.draw(SCREEN)
-            tower.attack(enemies, projectiles)
+            income = tower.attack(enemies, projectiles)
+            if income:
+                money += income
 
         update_projectiles()
 
-        for idx, rect in enumerate(slot_rects):
-            color = SLOT_ACTIVE if selected_tower_slot == idx else SLOT_BG
-            pygame.draw.rect(SCREEN, color, rect)
-            pygame.draw.circle(SCREEN, BLACK, rect.center, 15)
-            pygame.draw.circle(SCREEN, RED, rect.center, 10)
-            pygame.draw.circle(SCREEN, WHITE, rect.center, 5)
+        # INFO BUTTON
+        pygame.draw.circle(SCREEN, (200, 200, 200), info_button.center, 15)
+        text = font_small.render("i", True, BLACK)
+        SCREEN.blit(text, (
+            info_button.centerx - text.get_width() // 2,
+            info_button.centery - text.get_height() // 2
+        ))
 
-        # GELD OBEN RECHTS
-        money_text = font_small.render(f"Geld: {money}", True, WHITE)
-        SCREEN.blit(money_text, (WIDTH - money_text.get_width() - 20, 20))
+        # INFO BOX
+        if info_open and selected_tower_slot is not None:
+            draw_info_box(SCREEN, tower_types[selected_tower_slot])
+
+        # SLOT UI
+        for idx, rect in enumerate(slot_rects):
+            t = tower_types[idx]
+            color = SLOT_ACTIVE if selected_tower_slot == idx else SLOT_BG
+
+            pygame.draw.rect(SCREEN, color, rect, border_radius=10)
+
+            if t == "basic":
+                c = (80, 80, 80)
+                label = "B"
+            elif t == "sniper":
+                c = (30, 30, 180)
+                label = "S"
+            else:
+                c = (60, 160, 60)
+                label = "F"
+
+            pygame.draw.circle(SCREEN, c, rect.center, 18)
+
+            text = font_tiny.render(label, True, WHITE)
+            SCREEN.blit(text, (
+                rect.centerx - text.get_width() // 2,
+                rect.centery - text.get_height() // 2
+            ))
+
+        # HUD
+        SCREEN.blit(font_small.render(f"Geld: {money}", True, WHITE),
+                    (WIDTH - 180, 20))
 
         wave_text = font_small.render(f"Welle {wave}/{total_waves}", True, WHITE)
         SCREEN.blit(wave_text, (20, 20))
+
         lives_text = font_small.render(f"Leben: {player_lives}", True, WHITE)
         SCREEN.blit(lives_text, (20, 50))
 
-        # Fehlermeldung
         if error_timer > 0:
-            error_text = font_small.render("Nicht genug Geld!", True, RED)
-            SCREEN.blit(error_text, (WIDTH // 2 - 100, HEIGHT - 120))
+            err = font_small.render("Nicht genug Geld!", True, RED)
+            SCREEN.blit(err, (WIDTH // 2 - 100, HEIGHT - 120))
             error_timer -= 1
 
         if spawned == enemies_per_wave and len(enemies) == 0 and wave < total_waves:
             wave += 1
             enemies_per_wave += 2
             spawned = 0
-            # Wellenbonus
+
             if wave <= 3:
                 money += 10
             elif wave <= 6:
                 money += 15
             else:
                 money += 20
-        
+
         if player_lives <= 0:
             game_state = "game_over"
 
+    # GAME OVER
     elif game_state == "game_over":
         SCREEN.fill((80, 0, 0))
-        game_over_text = font_big.render("GAME OVER", True, WHITE)
-        SCREEN.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 50))
-        retry_text = font_small.render("Klick um neu zu starten", True, WHITE)
-        SCREEN.blit(retry_text, (WIDTH // 2 - retry_text.get_width() // 2, HEIGHT // 2 + 30))
+
+        txt = font_big.render("GAME OVER", True, WHITE)
+        SCREEN.blit(txt, (WIDTH // 2 - txt.get_width() // 2, HEIGHT // 2 - 50))
+
+        sub = font_small.render("Klick zum Neustart", True, WHITE)
+        SCREEN.blit(sub, (WIDTH // 2 - sub.get_width() // 2, HEIGHT // 2 + 30))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+
             if event.type == pygame.MOUSEBUTTONDOWN:
-                player_lives = 10
-                wave = 1
-                enemies_per_wave = 5
-                spawned = 0
-                enemies.clear()
-                towers.clear()
-                projectiles.clear()
-                selected_tower_slot = None
                 game_state = "menu"
 
     pygame.display.update()
